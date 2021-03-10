@@ -1,9 +1,11 @@
+package client;
+
+import utils.StratoUtils;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
 public class StratoClient {
@@ -76,25 +78,6 @@ public class StratoClient {
 
     private void sendMessage() throws IOException {
         String payload = input.nextLine();
-        byte[] payloadBytes = payload.getBytes(StandardCharsets.UTF_8);
-
-        byte[] length = intToByte(payloadBytes.length);
-
-        byte[] request = new byte[6 + payloadBytes.length];
-
-        request[0] = 0;
-        request[1] = 0;
-
-        System.arraycopy(length, 0, request, 2, 4);
-        System.arraycopy(payloadBytes, 0, request, 6, payloadBytes.length);
-
-        writer.write(request);
-    }
-
-    private byte[] intToByte(int num) {
-        return ByteBuffer.allocate(4).putInt(num).array();
+        writer.write(StratoUtils.makeAuthMessage((byte) 0, (byte) 0, payload));
     }
 }
-
-
-//TODO: close socket and streams

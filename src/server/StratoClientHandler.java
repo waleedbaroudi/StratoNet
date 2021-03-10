@@ -1,24 +1,31 @@
+package server;
+
+import utils.StratoUtils;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.net.Socket;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
+import java.net.SocketException;
+import java.util.Scanner;
 
 public class StratoClientHandler extends Thread {
     private final Socket clientSocket;
-    String username = "waroudi";
-    String password = "6199";
-    int passwordAttempts = 2;
 
+    private final File usersFile;
+
+    int passwordAttempts = 2;
     String inputUsername;
     String inputPassword;
+    String correctPassword;
 
     DataOutputStream writer;
     DataInputStream reader;
 
     public StratoClientHandler(Socket clientSocket) {
         this.clientSocket = clientSocket;
+        usersFile = new File(System.getProperty("user.dir") + "/users.txt");
     }
 
     public void run() {
@@ -36,6 +43,8 @@ public class StratoClientHandler extends Thread {
             writer.close();
             reader.close();
             clientSocket.close();
+        } catch (SocketException e) {
+            System.err.println("Client disconnected");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -66,7 +75,7 @@ public class StratoClientHandler extends Thread {
         System.out.println("[Request] " + payload);
         if (inputUsername == null) {
             inputUsername = payload;
-            if (inputUsername.equals(username)) {
+            if (isValidUsername(inputUsername)) {
                 sendMessage((byte) 0, (byte) 1, "Password:");
                 return true;
             }
@@ -75,7 +84,7 @@ public class StratoClientHandler extends Thread {
         }
 
         inputPassword = payload;
-        if (inputPassword.equals(password)) {
+        if (inputPassword.equals(correctPassword)) {
             sendMessage((byte) 0, (byte) 3, "Authenticated successfully!");
             return true;
         }
@@ -88,23 +97,22 @@ public class StratoClientHandler extends Thread {
         return false;
     }
 
-    private byte[] intToByte(int num) {
-        return ByteBuffer.allocate(4).putInt(num).array();
+    private boolean isValidUsername(String name) throws IOException {
+        Scanner fileScanner = new Scanner(usersFile);
+        String username;
+        while (fileScanner.hasNextLine()) {
+            username = fileScanner.nextLine();
+            if (name.equals(username)) {
+                correctPassword = fileScanner.nextLine();
+                return true;
+            }
+            fileScanner.nextLine(); // skip password line
+            fileScanner.nextLine(); // skip empty line
+        }
+        return false;
     }
 
     private void sendMessage(byte phase, byte type, String payload) throws IOException {
-        byte[] payloadBytes = payload.getBytes(StandardCharsets.UTF_8);
-
-        byte[] length = intToByte(payloadBytes.length);
-
-        byte[] request = new byte[6 + payloadBytes.length];
-
-        request[0] = phase;
-        request[1] = type;
-
-        System.arraycopy(length, 0, request, 2, 4);
-        System.arraycopy(payloadBytes, 0, request, 6, payloadBytes.length);
-
-        writer.write(request);
+        writer.write(StratoUtils.makeAuthMessage(phase, type, payload));
     }
 }
