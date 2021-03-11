@@ -9,14 +9,14 @@ public class StratoUtils {
         return ByteBuffer.allocate(4).putInt(num).array();
     }
 
-    public static byte[] makeAuthMessage(byte phase, byte type, String payload) {
+    public static byte[] makeAuthMessage(byte type, String payload) {
         byte[] payloadBytes = payload.getBytes(StandardCharsets.UTF_8);
 
         byte[] length = StratoUtils.intToByte(payloadBytes.length);
 
         byte[] request = new byte[6 + payloadBytes.length];
 
-        request[0] = phase;
+        request[0] = 0;
         request[1] = type;
 
         System.arraycopy(length, 0, request, 2, 4);

@@ -78,6 +78,6 @@ public class StratoClient {
 
     private void sendMessage() throws IOException {
         String payload = input.nextLine();
-        writer.write(StratoUtils.makeAuthMessage((byte) 0, (byte) 0, payload));
+        writer.write(StratoUtils.makeAuthMessage((byte) 0, payload));
     }
 }

@@ -12,6 +12,7 @@ import java.util.Scanner;
 
 public class StratoClientHandler extends Thread {
     private final Socket clientSocket;
+    private final StratoServer server;
 
     private final File usersFile;
 
@@ -20,12 +21,22 @@ public class StratoClientHandler extends Thread {
     String inputPassword;
     String correctPassword;
 
+    long token;
+
     DataOutputStream writer;
     DataInputStream reader;
 
-    public StratoClientHandler(Socket clientSocket) {
+    public StratoClientHandler(Socket clientSocket, StratoServer server) {
         this.clientSocket = clientSocket;
+        this.server = server;
+
         usersFile = new File(System.getProperty("user.dir") + "/users.txt");
+        String info = String.format("Client info\nInet: %s\nport: %d\nlocal port: %d\nlocal address: %s\n"
+                , clientSocket.getInetAddress().toString()
+                , clientSocket.getPort()
+                , clientSocket.getLocalPort()
+                , clientSocket.getLocalAddress().toString());
+        System.out.println(info);
     }
 
     public void run() {
@@ -45,6 +56,7 @@ public class StratoClientHandler extends Thread {
             clientSocket.close();
         } catch (SocketException e) {
             System.err.println("Client disconnected");
+            server.unregisterClient(token);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -85,6 +97,11 @@ public class StratoClientHandler extends Thread {
 
         inputPassword = payload;
         if (inputPassword.equals(correctPassword)) {
+            token = server.registerClient(inputUsername, clientSocket.getInetAddress().toString(), clientSocket.getPort());
+            if (token == -1) { // Client with this username is already signed in
+                sendMessage((byte) 0, (byte) 2, "User already signed in.");
+                return false;
+            }
             sendMessage((byte) 0, (byte) 3, "Authenticated successfully!");
             return true;
         }
@@ -113,6 +130,10 @@ public class StratoClientHandler extends Thread {
     }
 
     private void sendMessage(byte phase, byte type, String payload) throws IOException {
-        writer.write(StratoUtils.makeAuthMessage(phase, type, payload));
+        if (phase == 0) // auth
+            writer.write(StratoUtils.makeAuthMessage(type, payload));
+        else { // query
+
+        }
     }
 }
