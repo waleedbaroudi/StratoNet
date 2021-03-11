@@ -10,9 +10,11 @@ import java.util.Scanner;
 
 public class StratoClient {
 
-    DataOutputStream writer;
-    DataInputStream reader;
-    Scanner input;
+    private Socket dataSocket;
+
+    private DataOutputStream commandWriter;
+    private DataInputStream commandReader, dataReader;
+    private Scanner input;
 
     public static void main(String[] args) {
         StratoClient client = new StratoClient();
@@ -25,8 +27,8 @@ public class StratoClient {
 
     public void connect() throws IOException {
         Socket authSocket = new Socket("localhost", 5555);
-        writer = new DataOutputStream(authSocket.getOutputStream());
-        reader = new DataInputStream(authSocket.getInputStream());
+        commandWriter = new DataOutputStream(authSocket.getOutputStream());
+        commandReader = new DataInputStream(authSocket.getInputStream());
         input = new Scanner(System.in);
 
 
@@ -35,21 +37,21 @@ public class StratoClient {
                 break;
         }
 
-        writer.close();
-        reader.close();
+        commandWriter.close();
+        commandReader.close();
         authSocket.close();
     }
 
     private boolean receiveMessage() throws IOException {
-        byte phase = reader.readByte();
+        byte phase = commandReader.readByte();
         if (phase == 1) {
             System.out.println("WRONG PHASE");
             return false;
         }
-        byte type = reader.readByte();
-        int length = reader.readInt();
+        byte type = commandReader.readByte();
+        int length = commandReader.readInt();
         byte[] message = new byte[length];
-        reader.readFully(message, 0, message.length);
+        commandReader.readFully(message, 0, message.length);
         return processMessage(message, type);
     }
 
@@ -70,6 +72,9 @@ public class StratoClient {
             case 5: //Auth_Info
                 System.out.println("[INFO] " + payload);
                 return true;
+            case 6: //Auth_Connect
+                initializeQueryPhase(Integer.parseInt(payload));
+                return true;
             default:
                 System.out.println("[FATAL] UNKNOWN MESSAGE TYPE");
                 return false;
@@ -78,6 +83,12 @@ public class StratoClient {
 
     private void sendMessage() throws IOException {
         String payload = input.nextLine();
-        writer.write(StratoUtils.makeAuthMessage((byte) 0, payload));
+        commandWriter.write(StratoUtils.makeAuthMessage((byte) 0, payload));
+    }
+
+    private void initializeQueryPhase(int port) throws IOException {
+        dataSocket = new Socket("localhost", port);
+        dataReader = new DataInputStream(dataSocket.getInputStream());
+        System.out.println("Data socket and stream initialized with port " + port);
     }
 }

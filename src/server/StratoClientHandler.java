@@ -11,7 +11,8 @@ import java.net.SocketException;
 import java.util.Scanner;
 
 public class StratoClientHandler extends Thread {
-    private final Socket clientSocket;
+    private final Socket commandSocket;
+    private Socket dataSocket;
     private final StratoServer server;
 
     private final File usersFile;
@@ -26,8 +27,8 @@ public class StratoClientHandler extends Thread {
     DataOutputStream writer;
     DataInputStream reader;
 
-    public StratoClientHandler(Socket clientSocket, StratoServer server) {
-        this.clientSocket = clientSocket;
+    public StratoClientHandler(Socket commandSocket, StratoServer server) {
+        this.commandSocket = commandSocket;
         this.server = server;
 
         usersFile = new File(System.getProperty("user.dir") + "/users.txt");
@@ -35,8 +36,8 @@ public class StratoClientHandler extends Thread {
 
     public void run() {
         try {
-            writer = new DataOutputStream(clientSocket.getOutputStream());
-            reader = new DataInputStream(clientSocket.getInputStream());
+            writer = new DataOutputStream(commandSocket.getOutputStream());
+            reader = new DataInputStream(commandSocket.getInputStream());
 
             sendMessage((byte) 0, (byte) 5, "Welcome to StratoNet server");
             sendMessage((byte) 0, (byte) 1, "Username:");
@@ -47,7 +48,7 @@ public class StratoClientHandler extends Thread {
             }
             writer.close();
             reader.close();
-            clientSocket.close();
+            commandSocket.close();
         } catch (SocketException e) {
             System.err.println("Client disconnected");
             server.unregisterClient(token);
@@ -91,12 +92,13 @@ public class StratoClientHandler extends Thread {
 
         inputPassword = payload;
         if (inputPassword.equals(correctPassword)) {
-            token = server.registerClient(inputUsername, clientSocket.getInetAddress().toString(), clientSocket.getPort());
+            token = server.registerClient(inputUsername, commandSocket.getInetAddress().toString(), commandSocket.getPort());
             if (token == null) { // Client with this username is already signed in
                 sendMessage((byte) 0, (byte) 2, "User already signed in.");
                 return false;
             }
             sendMessage((byte) 0, (byte) 3, "Authenticated successfully!");
+            initializeQueryPhase();
             return true;
         }
         if (passwordAttempts > 0) {
@@ -129,5 +131,11 @@ public class StratoClientHandler extends Thread {
         else { // query
 
         }
+    }
+
+    private void initializeQueryPhase() throws IOException {
+        sendMessage((byte) 0, (byte) 6, "" + StratoServer.DATA_PORT); // send auth_connect with the query connection info
+        dataSocket = server.getDataSocket();
+        System.out.println("user connected to data socket");
     }
 }
