@@ -8,7 +8,7 @@ public class StratoServer {
 
     private boolean serverRunning;
 
-    private HashMap<Long, String> registeredClients;
+    private final HashMap<String, String> registeredClients;
 
     public static void main(String[] args) {
         try {
@@ -29,27 +29,26 @@ public class StratoServer {
         }
     }
 
-    public long registerClient(String username, String address, int port) {
-        long token = generateToken(username);
-        String connectionInfo = String.format("%s:%d", address, port);
+    public String registerClient(String username, String address, int port) {
+        String token = generateToken(username);
+        String connectionInfo = String.format("%s:%d", address.substring(1), port);
+
         if (registeredClients.put(token, connectionInfo) == null) // new entry to the map
             return token;
-        return -1;
+        return null;
     }
 
-    public void unregisterClient(long token) {
+    public void unregisterClient(String token) {
         registeredClients.remove(token);
     }
 
-    public long generateToken(String name) {
-        int index = 1;
-        int token = 0;
-        for (int i = 0; i < name.length(); i++) {
-            token += (name.charAt(i) * index);
-            index *= 10;
+    public String generateToken(String name) {
+        StringBuilder token = new StringBuilder();
+        token.append((int) name.toUpperCase().charAt(0));
+        for (int i = 1; i < name.length(); i++) {
+            token.append("-").append((int) name.toUpperCase().charAt(i));
         }
-        System.out.println("Token created for name [" + name + "]: " + token);
-        return token;
+        return token.toString();
     }
 }
 

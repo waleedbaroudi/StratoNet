@@ -21,7 +21,7 @@ public class StratoClientHandler extends Thread {
     String inputPassword;
     String correctPassword;
 
-    long token;
+    String token;
 
     DataOutputStream writer;
     DataInputStream reader;
@@ -31,12 +31,6 @@ public class StratoClientHandler extends Thread {
         this.server = server;
 
         usersFile = new File(System.getProperty("user.dir") + "/users.txt");
-        String info = String.format("Client info\nInet: %s\nport: %d\nlocal port: %d\nlocal address: %s\n"
-                , clientSocket.getInetAddress().toString()
-                , clientSocket.getPort()
-                , clientSocket.getLocalPort()
-                , clientSocket.getLocalAddress().toString());
-        System.out.println(info);
     }
 
     public void run() {
@@ -98,7 +92,7 @@ public class StratoClientHandler extends Thread {
         inputPassword = payload;
         if (inputPassword.equals(correctPassword)) {
             token = server.registerClient(inputUsername, clientSocket.getInetAddress().toString(), clientSocket.getPort());
-            if (token == -1) { // Client with this username is already signed in
+            if (token == null) { // Client with this username is already signed in
                 sendMessage((byte) 0, (byte) 2, "User already signed in.");
                 return false;
             }
