@@ -97,7 +97,7 @@ public class StratoClientHandler extends Thread {
                 sendMessage((byte) 0, (byte) 2, "User already signed in.");
                 return false;
             }
-            sendMessage((byte) 0, (byte) 3, "Authenticated successfully!");
+            sendMessage((byte) 0, (byte) 3, "Authenticated successfully!," + token);
             initializeQueryPhase();
             return true;
         }

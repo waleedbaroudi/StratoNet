@@ -49,11 +49,14 @@ public class StratoServer {
     }
 
     public String generateToken(String name) {
+        String upperName = name.toUpperCase();
         StringBuilder token = new StringBuilder();
-        token.append((int) name.toUpperCase().charAt(0));
-        for (int i = 1; i < name.length(); i++) {
-            token.append("-").append((int) name.toUpperCase().charAt(i));
-        }
+        for (int i = 0; i < 4; i++)
+            token.append((int) upperName.toUpperCase().charAt(i)).append("-");
+
+        token.append((int) (upperName.charAt(upperName.length() - 2))).
+                append("-").
+                append((int) (upperName.charAt(upperName.length() - 1)));
         return token.toString();
     }
 

@@ -16,6 +16,8 @@ public class StratoClient {
     private DataInputStream commandReader, dataReader;
     private Scanner input;
 
+    String token;
+
     public static void main(String[] args) {
         StratoClient client = new StratoClient();
         try {
@@ -67,7 +69,9 @@ public class StratoClient {
                 System.out.println("[FAIL] " + payload);
                 return false;
             case 3: // Auth_Success
-                System.out.println("[SUCCESS] " + payload);
+                String[] responses = payload.split(",");
+                System.out.println("[SUCCESS] " + responses[0]);
+                token = responses[1];
                 return true;
             case 5: //Auth_Info
                 System.out.println("[INFO] " + payload);
