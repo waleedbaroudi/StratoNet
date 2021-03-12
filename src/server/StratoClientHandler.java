@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.URL;
 import java.util.Scanner;
 
 public class StratoClientHandler extends Thread {
@@ -24,7 +25,8 @@ public class StratoClientHandler extends Thread {
 
     String token;
 
-    DataOutputStream writer;
+    DataOutputStream commandWriter;
+    DataOutputStream dataWriter;
     DataInputStream reader;
 
     public StratoClientHandler(Socket commandSocket, StratoServer server) {
@@ -36,7 +38,7 @@ public class StratoClientHandler extends Thread {
 
     public void run() {
         try {
-            writer = new DataOutputStream(commandSocket.getOutputStream());
+            commandWriter = new DataOutputStream(commandSocket.getOutputStream());
             reader = new DataInputStream(commandSocket.getInputStream());
 
             sendMessage((byte) 0, (byte) 5, "Welcome to StratoNet server");
@@ -46,7 +48,7 @@ public class StratoClientHandler extends Thread {
                 if (!receiveMessage())
                     break;
             }
-            writer.close();
+            commandWriter.close();
             reader.close();
             commandSocket.close();
         } catch (SocketException e) {
@@ -60,21 +62,29 @@ public class StratoClientHandler extends Thread {
 
     private boolean receiveMessage() throws IOException {
         byte phase = reader.readByte();
-        if (phase == 1) {
-            System.out.println("WRONG PHASE");
-            return false;
+        if (phase == 0) { // auth
+            byte type = reader.readByte();
+            int length = reader.readInt();
+            byte[] message = new byte[length];
+            reader.readFully(message, 0, message.length);
+            return processAuthMessage(message, type);
         }
-        byte type = reader.readByte();
-        int length = reader.readInt();
-        byte[] message = new byte[length];
-        reader.readFully(message, 0, message.length);
-        return processMessage(message, type);
+        if (phase == 1) { // query
+            byte[] receivedToken = new byte[StratoUtils.TOKEN_LENGTH];
+            reader.readFully(receivedToken, 0, receivedToken.length);
+            byte type = reader.readByte();
+            int length = reader.readInt();
+            byte[] message = new byte[length];
+            reader.readFully(message, 0, message.length);
+            return processQueryMessage(receivedToken, message, type);
+        }
+        return false;
     }
 
-    private boolean processMessage(byte[] message, byte type) throws IOException {
+    private boolean processAuthMessage(byte[] message, byte type) throws IOException {
         String payload = new String(message);
 
-        if (type != 0) { // Auth_Challenge
+        if (type != 0) { // not Auth_Request
             System.out.println("[FATAL] UNKNOWN MESSAGE TYPE");
             return false;
         }
@@ -110,6 +120,26 @@ public class StratoClientHandler extends Thread {
         return false;
     }
 
+    private boolean processQueryMessage(byte[] receivedToken, byte[] message, byte type) throws IOException {
+        if (!server.isRegisteredToken(new String(receivedToken), commandSocket.getInetAddress().toString(), commandSocket.getPort())) {
+            sendMessage((byte) 1, (byte) 4, "Access Denied: Unauthorized user");
+            return false;
+        }
+
+        switch (type) {
+            case 1:
+                sendMessage((byte) 1, (byte) 3, "Processing request..");
+                handleApodRequest(new String(message));
+                return true;
+            case 2:
+                handleInsightRequest(new String(message));
+                return true;
+            default:
+                sendMessage((byte) 1, (byte) 4, "Unknown API Operation");
+                return false;
+        }
+    }
+
     private boolean isValidUsername(String name) throws IOException {
         Scanner fileScanner = new Scanner(usersFile);
         String username;
@@ -127,15 +157,31 @@ public class StratoClientHandler extends Thread {
 
     private void sendMessage(byte phase, byte type, String payload) throws IOException {
         if (phase == 0) // auth
-            writer.write(StratoUtils.makeAuthMessage(type, payload));
-        else { // query
+            commandWriter.write(StratoUtils.makeAuthMessage(type, payload));
+        else  // query
+            commandWriter.write(StratoUtils.makeQueryMessage(token, type, payload));
+    }
 
-        }
+    private void sendData(int length, byte[] data) throws IOException {
+        dataWriter.write(StratoUtils.intToByte(length));
+        dataWriter.write(data);
     }
 
     private void initializeQueryPhase() throws IOException {
         sendMessage((byte) 0, (byte) 6, "" + StratoServer.DATA_PORT); // send auth_connect with the query connection info
         dataSocket = server.getDataSocket();
+        dataWriter = new DataOutputStream(dataSocket.getOutputStream());
         System.out.println("user connected to data socket");
+    }
+
+    private void handleApodRequest(String param) throws IOException {
+        URL url = new URL(StratoUtils.APOD_URL + "&" + param);
+        byte[] response = server.requestApod(url);
+        sendMessage((byte) 1, (byte) 0, "data retrieved"); // todo: change to send hash instead
+        sendData(response.length, response);
+    }
+
+    private void handleInsightRequest(String param) {
+
     }
 }

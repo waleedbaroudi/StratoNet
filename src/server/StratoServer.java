@@ -1,8 +1,12 @@
 package server;
 
-import java.io.IOException;
+import utils.StratoUtils;
+
+import java.io.*;
+import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.URL;
 import java.util.HashMap;
 
 public class StratoServer {
@@ -62,6 +66,46 @@ public class StratoServer {
 
     public Socket getDataSocket() throws IOException {
         return dataServerSocket.accept();
+    }
+
+    public boolean isRegisteredToken(String token, String address, int port) {
+        String info = address.substring(1) + ":" + port;
+        return registeredClients.get(token).equals(info);
+    }
+
+    public byte[] requestApod(URL url) throws IOException {
+        HttpURLConnection apodConnection = (HttpURLConnection) url.openConnection();
+        apodConnection.setRequestMethod("GET");
+        apodConnection.setRequestProperty("Content-Type", "application/json");
+        int status = apodConnection.getResponseCode();
+        System.out.println("RESPONSE CODE: " + status);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(apodConnection.getInputStream()));
+        String input;
+        StringBuffer content = new StringBuffer();
+
+        while ((input = reader.readLine()) != null)
+            content.append(input);
+
+        reader.close();
+        apodConnection.disconnect();
+
+        String json = content.toString();
+
+        return downloadImage(StratoUtils.extractURL(json));
+    }
+
+    private byte[] downloadImage(String url) throws IOException {
+        URL imgUrl = new URL(url);
+        InputStream imgInput = new BufferedInputStream(imgUrl.openStream());
+        ByteArrayOutputStream imgOutput = new ByteArrayOutputStream();
+        byte[] buffer = new byte[1024];
+        int length = 0;
+        while ((length = imgInput.read(buffer)) != -1) {
+            imgOutput.write(buffer, 0, length);
+        }
+        imgInput.close();
+        imgOutput.close();
+        return imgOutput.toByteArray();
     }
 }
 
