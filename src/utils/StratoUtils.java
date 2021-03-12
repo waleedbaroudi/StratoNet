@@ -9,7 +9,7 @@ public final class StratoUtils {
 
     public static final int TOKEN_LENGTH = 17;
     public static final String APOD_URL =
-            "https://api.nasa.gov/planetary/apod?api_key=VgdpOJ1gLggIX6FTts3OAZhu9J0d7iaSNx921Itr";
+            "https://api.nasa.gov/planetary/apod?api_key=VgdpOJ1gLggIX6FTts3OAZhu9J0d7iaSNx921Itr&date=";
     public static final String INSIGHT_URL = ""; // TODO: set later
 
     public static byte[] intToByte(int num) {
@@ -58,7 +58,6 @@ public final class StratoUtils {
         while (matcher.find()) {
             url = matcher.group().substring(6);
         }
-
         return url;
     }
 }

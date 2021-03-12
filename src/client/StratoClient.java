@@ -3,10 +3,7 @@ package client;
 import utils.InvalidTokenException;
 import utils.StratoUtils;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.util.Scanner;
 
@@ -71,6 +68,7 @@ public class StratoClient {
             case 0: //hash
                 System.out.println("[HASH] " + payload);
                 receiveData();
+                sendQuery();
                 return true;
             case 3: // info
                 System.out.println("[INFO] " + payload);
@@ -125,23 +123,39 @@ public class StratoClient {
 
     private void sendQuery() throws IOException, InvalidTokenException {
         System.out.println("Choose API (APOD or Insight) [1 / 2]:");
-        String api = input.nextLine();
-        System.out.println("Enter request parameter [param=value]:");
+        byte api = input.nextByte();
+        input.nextLine();
+        if (api == 1) // todo: change this to byte
+            System.out.println("Enter date [yyyy-mm-dd]:");
+        else
+            System.out.println("Enter trigger [trigger format]:");
         String param = input.nextLine();
 
-        commandWriter.write(StratoUtils.makeQueryMessage(token, Byte.parseByte(api), param));
+        commandWriter.write(StratoUtils.makeQueryMessage(token, api, param));
     }
 
     private void receiveData() throws IOException {
-        System.out.println("receiving data");
+        byte type = dataReader.readByte();
         int length = dataReader.readInt();
         byte[] data = new byte[length];
         dataReader.readFully(data, 0, data.length);
-        System.out.println("data received, saving..");
-        FileOutputStream saveStream = new FileOutputStream(System.getProperty("user.dir") + "/client_requested_image.jpg");
+        if (type == 1) // APOD data
+            downloadImage(data);
+        else // Insight data
+            processJSONObject(data);
+    }
+
+    private void downloadImage(byte[] data) throws IOException {
+        System.out.println("Enter image name: ");
+        String name = input.nextLine();
+        System.out.println("saving image..");
+        FileOutputStream saveStream = new FileOutputStream(System.getProperty("user.dir") + File.separator + name + ".jpg");
         saveStream.write(data);
         saveStream.close();
         System.out.println("image saved.");
-        sendQuery();
+    }
+
+    private void processJSONObject(byte[] data) {
+        //TODO: implement
     }
 }

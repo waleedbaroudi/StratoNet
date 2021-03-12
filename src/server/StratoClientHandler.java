@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.util.Scanner;
 
 public class StratoClientHandler extends Thread {
@@ -162,7 +163,8 @@ public class StratoClientHandler extends Thread {
             commandWriter.write(StratoUtils.makeQueryMessage(token, type, payload));
     }
 
-    private void sendData(int length, byte[] data) throws IOException {
+    private void sendData(byte type, int length, byte[] data) throws IOException {
+        dataWriter.write(type);
         dataWriter.write(StratoUtils.intToByte(length));
         dataWriter.write(data);
     }
@@ -175,10 +177,15 @@ public class StratoClientHandler extends Thread {
     }
 
     private void handleApodRequest(String param) throws IOException {
-        URL url = new URL(StratoUtils.APOD_URL + "&" + param);
+        URL url = new URL(StratoUtils.APOD_URL + param);
         byte[] response = server.requestApod(url);
+        if (response == null) { // no image url in the returned json object
+            sendMessage((byte) 1, (byte) 4, "No image found with the given date.");
+            return;
+        }
+        // image retrieved and downloaded
         sendMessage((byte) 1, (byte) 0, "data retrieved"); // todo: change to send hash instead
-        sendData(response.length, response);
+        sendData((byte) 1, response.length, response);
     }
 
     private void handleInsightRequest(String param) {

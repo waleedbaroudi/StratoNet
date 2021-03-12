@@ -90,8 +90,10 @@ public class StratoServer {
         apodConnection.disconnect();
 
         String json = content.toString();
-
-        return downloadImage(StratoUtils.extractURL(json));
+        String imageUrl = StratoUtils.extractURL(json);
+        if (imageUrl.isEmpty())
+            return null;
+        return downloadImage(imageUrl);
     }
 
     private byte[] downloadImage(String url) throws IOException {
@@ -99,7 +101,7 @@ public class StratoServer {
         InputStream imgInput = new BufferedInputStream(imgUrl.openStream());
         ByteArrayOutputStream imgOutput = new ByteArrayOutputStream();
         byte[] buffer = new byte[1024];
-        int length = 0;
+        int length;
         while ((length = imgInput.read(buffer)) != -1) {
             imgOutput.write(buffer, 0, length);
         }
