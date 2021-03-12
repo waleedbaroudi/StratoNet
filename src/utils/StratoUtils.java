@@ -108,4 +108,16 @@ public final class StratoUtils {
 
         return info;
     }
+
+    public static String generateHash(int type, byte[] data) {
+        StringBuilder hash = new StringBuilder();
+        if (type == 1)
+            hash.append("img-");
+        else
+            hash.append("str-");
+
+        hash.append(Arrays.hashCode(data));
+
+        return hash.toString();
+    }
 }

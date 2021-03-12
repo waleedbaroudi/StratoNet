@@ -5,6 +5,7 @@ import utils.StratoUtils;
 
 import java.io.*;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.Scanner;
 
 public class StratoClient {
@@ -66,8 +67,7 @@ public class StratoClient {
 
         switch (type) {
             case 0: //hash
-                System.out.println("[HASH] " + payload);
-                receiveData();
+                receiveData(payload);
                 sendQuery();
                 return true;
             case 3: // info
@@ -134,11 +134,16 @@ public class StratoClient {
         commandWriter.write(StratoUtils.makeQueryMessage(token, api, param));
     }
 
-    private void receiveData() throws IOException {
+    private void receiveData(String hashcode) throws IOException {
         byte type = dataReader.readByte();
         int length = dataReader.readInt();
         byte[] data = new byte[length];
         dataReader.readFully(data, 0, data.length);
+        if (!verifyDataHash(hashcode, data, type)) {
+            //request retransmit
+            System.out.println("FILE MISMATCH: WRONG HASH");
+            return;
+        }
         if (type == 1) // APOD data
             downloadImage(data);
         else // Insight data
@@ -160,6 +165,11 @@ public class StratoClient {
         String[] values = StratoUtils.getPressureValues(pressure);
         for (String value : values)
             System.out.println(value.trim());
+    }
+
+    private boolean verifyDataHash(String hash, byte[] data, byte type) {
+        String receivedFileHash = (type == 1 ? "img-" : "str-") + Arrays.hashCode(data);
+        return hash.equals(receivedFileHash);
     }
 
 

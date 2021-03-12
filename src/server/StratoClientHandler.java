@@ -189,7 +189,7 @@ public class StratoClientHandler extends Thread {
         }
         // image url found
         byte[] image = StratoUtils.downloadImage(imageUrl);
-        sendMessage((byte) 1, (byte) 0, "data retrieved"); // todo: change to send hash instead
+        sendMessage((byte) 1, (byte) 0, StratoUtils.generateHash(1, image));
         sendData((byte) 1, image.length, image);
     }
 
@@ -198,7 +198,7 @@ public class StratoClientHandler extends Thread {
         String response = server.apiRequest(url);
         String[] solPREList = StratoUtils.extractPREObjects(response);
         byte[] data = solPREList[Integer.parseInt(param)].getBytes(StandardCharsets.UTF_8);
-        sendMessage((byte) 1, (byte) 0, "data retrieved"); // todo: change to send hash instead
+        sendMessage((byte) 1, (byte) 0, StratoUtils.generateHash(2, data));
         sendData((byte) 2, data.length, data);
     }
 }
