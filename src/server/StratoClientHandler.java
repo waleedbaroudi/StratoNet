@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
@@ -25,6 +26,7 @@ public class StratoClientHandler extends Thread {
     String correctPassword;
 
     String token;
+    private int currentPhase = 0;
 
     DataOutputStream commandWriter;
     DataOutputStream dataWriter;
@@ -41,6 +43,7 @@ public class StratoClientHandler extends Thread {
         try {
             commandWriter = new DataOutputStream(commandSocket.getOutputStream());
             reader = new DataInputStream(commandSocket.getInputStream());
+            commandSocket.setSoTimeout(10000);
 
             sendMessage((byte) 0, (byte) 5, "Welcome to StratoNet server");
             sendMessage((byte) 0, (byte) 1, "Username:");
@@ -49,23 +52,36 @@ public class StratoClientHandler extends Thread {
                 if (!receiveMessage())
                     break;
             }
-            commandWriter.close();
-            dataWriter.close();
-            reader.close();
-            commandSocket.close();
-            dataSocket.close();
-            server.unregisterClient(token);
+
+            closeConnection();
+        } catch (SocketTimeoutException e) {
+            sendTimeOutMessage();
         } catch (SocketException e) {
             System.err.println("Client disconnected");
-            server.unregisterClient(token);
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            server.unregisterClient(token);
         }
     }
 
+    private void closeConnection() throws IOException {
+
+        commandWriter.close();
+        reader.close();
+        commandSocket.close();
+        if (dataWriter != null) {
+            dataWriter.close();
+            dataSocket.close();
+        }
+    }
 
     private boolean receiveMessage() throws IOException {
         byte phase = reader.readByte();
+        if (phase != currentPhase) {
+            rejectMessage();
+            return false;
+        }
         if (phase == 0) { // auth
             byte type = reader.readByte();
             int length = reader.readInt();
@@ -126,17 +142,21 @@ public class StratoClientHandler extends Thread {
 
     private boolean processQueryMessage(byte[] receivedToken, byte[] message, byte type) throws IOException {
         if (!server.isRegisteredToken(new String(receivedToken), commandSocket.getInetAddress().toString(), commandSocket.getPort())) {
-            sendMessage((byte) 1, (byte) 4, "Access Denied: Unauthorized user");
+            sendMessage((byte) 1, (byte) 4, "Access Denied: invalid token");
             return false;
         }
 
         switch (type) {
             case 1:
-                sendMessage((byte) 1, (byte) 3, "Processing request..");
                 handleApodRequest(new String(message));
                 return true;
             case 2:
                 handleInsightRequest(new String(message));
+                return true;
+            case 5:
+                System.out.println("Acknowledged: " + new String(message));
+                // set timeout back to 10 seconds
+                commandSocket.setSoTimeout(10000);
                 return true;
             default:
                 sendMessage((byte) 1, (byte) 4, "Unknown API Operation");
@@ -166,6 +186,19 @@ public class StratoClientHandler extends Thread {
             commandWriter.write(StratoUtils.makeQueryMessage(token, type, payload));
     }
 
+
+    private void sendTimeOutMessage() {
+        System.out.println("Client " + commandSocket.getPort() + " timed out.");
+        try {
+            if (currentPhase == 0)
+                sendMessage((byte) 0, (byte) 2, "Connection timed out. Authentication failed.");
+            else
+                sendMessage((byte) 1, (byte) 4, "Connection timed out, terminating session..");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void sendData(byte type, int length, byte[] data) throws IOException {
         dataWriter.write(type);
         dataWriter.write(StratoUtils.intToByte(length));
@@ -173,6 +206,7 @@ public class StratoClientHandler extends Thread {
     }
 
     private void initializeQueryPhase() throws IOException {
+        currentPhase = 1;
         sendMessage((byte) 0, (byte) 6, "" + StratoServer.DATA_PORT); // send auth_connect with the query connection info
         dataSocket = server.getDataSocket();
         dataWriter = new DataOutputStream(dataSocket.getOutputStream());
@@ -180,6 +214,7 @@ public class StratoClientHandler extends Thread {
     }
 
     private void handleApodRequest(String param) throws IOException {
+        startProcessingState();
         URL url = new URL(StratoUtils.APOD_URL + param);
         String response = server.apiRequest(url);
         String imageUrl = StratoUtils.extractURL(response);
@@ -194,6 +229,7 @@ public class StratoClientHandler extends Thread {
     }
 
     private void handleInsightRequest(String param) throws IOException {
+        startProcessingState();
         URL url = new URL(StratoUtils.INSIGHT_URL);
         String response = server.apiRequest(url);
         String[] solPREList = StratoUtils.extractPREObjects(response);
@@ -201,4 +237,18 @@ public class StratoClientHandler extends Thread {
         sendMessage((byte) 1, (byte) 0, StratoUtils.generateHash(2, data));
         sendData((byte) 2, data.length, data);
     }
+
+    private void startProcessingState() throws IOException {
+        sendMessage((byte) 1, (byte) 3, "Processing request..");
+        commandSocket.setSoTimeout(0);
+    }
+
+    private void rejectMessage() throws IOException {
+        if (currentPhase == 0)
+            sendMessage((byte) currentPhase, (byte) 2, "Authentication phase already passed.");
+        else
+            sendMessage((byte) currentPhase, (byte) 4, "Access Denied: unauthorized user");
+    }
+
+
 }

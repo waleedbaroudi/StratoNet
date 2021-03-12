@@ -88,7 +88,7 @@ public class StratoClient {
         switch (type) {
             case 1: // Auth_Challenge
                 System.out.println("[CHALLENGE] " + payload);
-                sendMessage();
+                sendAuthMessage();
                 return true;
             case 2: // Auth_Fail
                 System.out.println("[FAIL] " + payload);
@@ -111,7 +111,7 @@ public class StratoClient {
         }
     }
 
-    private void sendMessage() throws IOException {
+    private void sendAuthMessage() throws IOException {
         String payload = input.nextLine();
         commandWriter.write(StratoUtils.makeAuthMessage((byte) 0, payload));
     }
@@ -140,7 +140,7 @@ public class StratoClient {
         byte[] data = new byte[length];
         dataReader.readFully(data, 0, data.length);
         if (!verifyDataHash(hashcode, data, type)) {
-            //request retransmit
+            // todo: request retransmit
             System.out.println("FILE MISMATCH: WRONG HASH");
             return;
         }
@@ -148,6 +148,9 @@ public class StratoClient {
             downloadImage(data);
         else // Insight data
             processJSONObject(data);
+
+        // send acknowledge message
+        commandWriter.write(StratoUtils.makeQueryMessage(token, (byte) 5, hashcode));
     }
 
     private void downloadImage(byte[] data) throws IOException {
