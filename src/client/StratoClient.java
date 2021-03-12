@@ -128,7 +128,7 @@ public class StratoClient {
         if (api == 1) // todo: change this to byte
             System.out.println("Enter date [yyyy-mm-dd]:");
         else
-            System.out.println("Enter trigger [trigger format]:");
+            System.out.println("Enter sol number [1-7]:");
         String param = input.nextLine();
 
         commandWriter.write(StratoUtils.makeQueryMessage(token, api, param));
@@ -156,6 +156,11 @@ public class StratoClient {
     }
 
     private void processJSONObject(byte[] data) {
-        //TODO: implement
+        String pressure = new String(data);
+        String[] values = StratoUtils.getPressureValues(pressure);
+        for (String value : values)
+            System.out.println(value.trim());
     }
+
+
 }

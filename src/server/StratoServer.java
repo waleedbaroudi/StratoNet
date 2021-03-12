@@ -1,8 +1,8 @@
 package server;
 
-import utils.StratoUtils;
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -73,13 +73,13 @@ public class StratoServer {
         return registeredClients.get(token).equals(info);
     }
 
-    public byte[] requestApod(URL url) throws IOException {
-        HttpURLConnection apodConnection = (HttpURLConnection) url.openConnection();
-        apodConnection.setRequestMethod("GET");
-        apodConnection.setRequestProperty("Content-Type", "application/json");
-        int status = apodConnection.getResponseCode();
+    public String apiRequest(URL url) throws IOException {
+        HttpURLConnection httpConnection = (HttpURLConnection) url.openConnection();
+        httpConnection.setRequestMethod("GET");
+        httpConnection.setRequestProperty("Content-Type", "application/json");
+        int status = httpConnection.getResponseCode();
         System.out.println("RESPONSE CODE: " + status);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(apodConnection.getInputStream()));
+        BufferedReader reader = new BufferedReader(new InputStreamReader(httpConnection.getInputStream()));
         String input;
         StringBuffer content = new StringBuffer();
 
@@ -87,28 +87,11 @@ public class StratoServer {
             content.append(input);
 
         reader.close();
-        apodConnection.disconnect();
+        httpConnection.disconnect();
 
-        String json = content.toString();
-        String imageUrl = StratoUtils.extractURL(json);
-        if (imageUrl.isEmpty())
-            return null;
-        return downloadImage(imageUrl);
+        return content.toString();
     }
 
-    private byte[] downloadImage(String url) throws IOException {
-        URL imgUrl = new URL(url);
-        InputStream imgInput = new BufferedInputStream(imgUrl.openStream());
-        ByteArrayOutputStream imgOutput = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        int length;
-        while ((length = imgInput.read(buffer)) != -1) {
-            imgOutput.write(buffer, 0, length);
-        }
-        imgInput.close();
-        imgOutput.close();
-        return imgOutput.toByteArray();
-    }
 }
 
 

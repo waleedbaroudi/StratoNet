@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.URL;
-import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
 
 public class StratoClientHandler extends Thread {
@@ -50,8 +50,11 @@ public class StratoClientHandler extends Thread {
                     break;
             }
             commandWriter.close();
+            dataWriter.close();
             reader.close();
             commandSocket.close();
+            dataSocket.close();
+            server.unregisterClient(token);
         } catch (SocketException e) {
             System.err.println("Client disconnected");
             server.unregisterClient(token);
@@ -178,17 +181,24 @@ public class StratoClientHandler extends Thread {
 
     private void handleApodRequest(String param) throws IOException {
         URL url = new URL(StratoUtils.APOD_URL + param);
-        byte[] response = server.requestApod(url);
-        if (response == null) { // no image url in the returned json object
+        String response = server.apiRequest(url);
+        String imageUrl = StratoUtils.extractURL(response);
+        if (imageUrl == null) { // no image url in the returned json object
             sendMessage((byte) 1, (byte) 4, "No image found with the given date.");
             return;
         }
-        // image retrieved and downloaded
+        // image url found
+        byte[] image = StratoUtils.downloadImage(imageUrl);
         sendMessage((byte) 1, (byte) 0, "data retrieved"); // todo: change to send hash instead
-        sendData((byte) 1, response.length, response);
+        sendData((byte) 1, image.length, image);
     }
 
-    private void handleInsightRequest(String param) {
-
+    private void handleInsightRequest(String param) throws IOException {
+        URL url = new URL(StratoUtils.INSIGHT_URL);
+        String response = server.apiRequest(url);
+        String[] solPREList = StratoUtils.extractPREObjects(response);
+        byte[] data = solPREList[Integer.parseInt(param)].getBytes(StandardCharsets.UTF_8);
+        sendMessage((byte) 1, (byte) 0, "data retrieved"); // todo: change to send hash instead
+        sendData((byte) 2, data.length, data);
     }
 }
