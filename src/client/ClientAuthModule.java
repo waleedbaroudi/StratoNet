@@ -7,6 +7,9 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Scanner;
 
+/**
+ * this class handles the authentication related operations of the client side
+ */
 class ClientAuthModule {
 
     private final StratoClient client;
@@ -23,6 +26,13 @@ class ClientAuthModule {
         input = new Scanner(System.in);
     }
 
+    /**
+     * processes the received authentication message based on the type and content
+     * takes action based on the message type.
+     *
+     * @return whether the received message should terminate the connection
+     * @throws IOException from stream and socket operations
+     */
     boolean processAuthMessage() throws IOException {
         byte type = reader.readByte();
         String payload = new String(readMessage());
@@ -51,6 +61,12 @@ class ClientAuthModule {
         }
     }
 
+    /**
+     * sends an authentication phase method to the server
+     * message type not specified because the client can only send Auth_Request messages in this phase.
+     *
+     * @throws IOException from stream and socket operations
+     */
     private void sendAuthMessage() throws IOException {
         String payload = input.nextLine();
         writer.write(StratoUtils.makeAuthMessage((byte) 0, payload));
@@ -60,6 +76,12 @@ class ClientAuthModule {
         return token;
     }
 
+    /**
+     * reads the payload of the message from the command socket input stream
+     *
+     * @return the payload as an array of bytes
+     * @throws IOException from stream and socket operations
+     */
     private byte[] readMessage() throws IOException {
         int length = reader.readInt();
         byte[] message = new byte[length];

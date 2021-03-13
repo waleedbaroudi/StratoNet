@@ -1,9 +1,6 @@
 package utils;
 
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -13,18 +10,37 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * this class is for constants, client-server shared methods, and methods not directly related to network operations
+ */
 public final class StratoUtils {
 
+    // CONSTANTS //
     public static final int TOKEN_LENGTH = 17;
     public static final String APOD_URL =
             "https://api.nasa.gov/planetary/apod?api_key=VgdpOJ1gLggIX6FTts3OAZhu9J0d7iaSNx921Itr&date=";
     public static final String INSIGHT_URL =
             "https://api.nasa.gov/insight_weather/?api_key=VgdpOJ1gLggIX6FTts3OAZhu9J0d7iaSNx921Itr&feedtype=json&ver=1.0";
 
+    //
+
+    /**
+     * converts an 'int' to its byte representation.
+     *
+     * @param num the int to be converted
+     * @return the byte representation of the int
+     */
     public static byte[] intToByte(int num) {
         return ByteBuffer.allocate(4).putInt(num).array();
     }
 
+    /**
+     * forms an authentication message according to the auth message protocol
+     *
+     * @param type    message type
+     * @param payload message content (payload)
+     * @return the message as a byte array
+     */
     public static byte[] makeAuthMessage(byte type, String payload) {
         byte[] payloadBytes = payload.getBytes(StandardCharsets.UTF_8);
         byte[] length = StratoUtils.intToByte(payloadBytes.length);
@@ -39,6 +55,15 @@ public final class StratoUtils {
         return request;
     }
 
+    /**
+     * forms a query message according to the query message protocol
+     *
+     * @param token   the token to be appended to the message
+     * @param type    message type
+     * @param payload message content (payload)
+     * @return the message as a byte array
+     * @throws InvalidTokenException if the given token does not follow the normal token format
+     */
     public static byte[] makeQueryMessage(String token, byte type, String payload) throws InvalidTokenException {
         byte[] tokenBytes = token.getBytes(StandardCharsets.UTF_8);
         if (tokenBytes.length != TOKEN_LENGTH)
@@ -57,6 +82,12 @@ public final class StratoUtils {
         return request;
     }
 
+    /**
+     * given a json object, extracts a url from it
+     *
+     * @param json the json object to be processed
+     * @return the url if found, empty string otherwise
+     */
     public static String extractURL(String json) {
         String pattern = "\\burl\":\"[^\"]+";
         Pattern urlPattern = Pattern.compile(pattern);
@@ -70,6 +101,13 @@ public final class StratoUtils {
         return url;
     }
 
+    /**
+     * downloads an image from the web
+     *
+     * @param url url of the image
+     * @return the image as a byte array
+     * @throws IOException
+     */
     public static byte[] downloadImage(String url) throws IOException {
         URL imgUrl = new URL(url);
         InputStream imgInput = new BufferedInputStream(imgUrl.openStream());
@@ -84,6 +122,12 @@ public final class StratoUtils {
         return imgOutput.toByteArray();
     }
 
+    /**
+     * given a json object, extracts a list of "PRE" objects (based on the Insight API)
+     *
+     * @param response the json object to be processed
+     * @return list of PRE json objects
+     */
     public static String[] extractPREObjects(String response) {
         String[] preObjects = new String[7];
         String patString = "\"PRE\"[^}]+}";
@@ -98,6 +142,12 @@ public final class StratoUtils {
         return preObjects;
     }
 
+    /**
+     * given a 'PRE' JSON object, extracts and formats relevant values
+     *
+     * @param pressure JSON object
+     * @return formatted values
+     */
     public static String[] getPressureValues(String pressure) {
         String[] info = pressure.substring(1, pressure.length() - 1).split(",");
         List<String> values = Arrays.asList(info).stream().map(field -> field.split(":")[1].trim()).collect(Collectors.toList());
@@ -109,6 +159,13 @@ public final class StratoUtils {
         return info;
     }
 
+    /**
+     * generates a hash for a file
+     *
+     * @param type type of the file
+     * @param data the file as a byte array
+     * @return the hash code
+     */
     public static String generateHash(int type, byte[] data) {
         StringBuilder hash = new StringBuilder();
         if (type == 1)
@@ -119,5 +176,19 @@ public final class StratoUtils {
         hash.append(Arrays.hashCode(data));
 
         return hash.toString();
+    }
+
+    /**
+     * saves an image locally to the machine
+     *
+     * @param data the image as a byte array
+     * @param name desired image file name
+     * @throws IOException from the FileOutputStream operations
+     */
+    public static void saveImage(byte[] data, String name) throws IOException {
+        System.out.println("saving image..");
+        FileOutputStream saveStream = new FileOutputStream(System.getProperty("user.dir") + File.separator + name + ".jpg");
+        saveStream.write(data);
+        saveStream.close();
     }
 }

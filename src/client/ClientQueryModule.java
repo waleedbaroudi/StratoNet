@@ -3,10 +3,15 @@ package client;
 import utils.InvalidTokenException;
 import utils.StratoUtils;
 
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Scanner;
 
+/**
+ * this class handles the query related operations of the client side
+ */
 class ClientQueryModule {
     private final StratoClient client;
     private final DataInputStream commandReader;
@@ -24,7 +29,14 @@ class ClientQueryModule {
         input = new Scanner(System.in);
     }
 
-
+    /**
+     * takes client input, forms a query and sends it through the output stream of the command socket
+     *
+     * @return whether the user chose to end connection
+     * @throws IOException           from stream and socket operations
+     * @throws InvalidTokenException if the token to be appended to the query does not
+     *                               follow the normal token format
+     */
     boolean sendQuery() throws IOException, InvalidTokenException {
         System.out.println("Choose API (APOD or Insight) [1 / 2], or [-1] to disconnect:");
         byte api = input.nextByte();
@@ -50,6 +62,13 @@ class ClientQueryModule {
         return true;
     }
 
+    /**
+     * processes the received query-phase message based on the type and content
+     * takes action based on the message type.
+     *
+     * @return whether the received message should terminate the connection
+     * @throws IOException from stream and socket operations
+     */
     boolean processQueryMessage() throws IOException {
         if (!skipToken())
             return false;
@@ -71,6 +90,11 @@ class ClientQueryModule {
         }
     }
 
+    /**
+     * processes the received data based on the data type (Image or JSON String)
+     *
+     * @throws IOException from stream and socket operations
+     */
     private void receiveData(String hashcode) throws IOException {
         byte type = dataReader.readByte();
         int length = dataReader.readInt();
@@ -89,6 +113,12 @@ class ClientQueryModule {
         commandWriter.write(StratoUtils.makeQueryMessage(client.getToken(), (byte) 5, hashcode));
     }
 
+    /**
+     * Skips the bytes containing the token, as a token check is not necessary at this point.
+     *
+     * @return whether the token bytes were skipped successfully
+     * @throws IOException from stream and socket operations
+     */
     private boolean skipToken() throws IOException {
         if (commandReader.skipBytes(StratoUtils.TOKEN_LENGTH) != StratoUtils.TOKEN_LENGTH) {// skip token bytes
             // token bytes were not skipped fully
@@ -98,6 +128,12 @@ class ClientQueryModule {
         return true;
     }
 
+    /**
+     * reads the payload of the message from the command socket input stream
+     *
+     * @return the payload as an array of bytes
+     * @throws IOException from stream and socket operations
+     */
     private byte[] readMessage() throws IOException {
         int length = commandReader.readInt();
         byte[] message = new byte[length];
@@ -105,26 +141,45 @@ class ClientQueryModule {
         return message;
     }
 
-    private boolean verifyDataHash(String hash, byte[] data, byte type) {
+    /**
+     * checks the validity of the hashcode of the received file
+     *
+     * @param receivedHash hash received through the command socket
+     * @param data         received file
+     * @param type         type of received file
+     * @return whether the received hashcode matches that of the received file
+     */
+    private boolean verifyDataHash(String receivedHash, byte[] data, byte type) {
         String receivedFileHash = (type == 1 ? "img-" : "str-") + Arrays.hashCode(data);
-        return hash.equals(receivedFileHash);
+        return receivedHash.equals(receivedFileHash);
     }
 
+    /**
+     * resends a request of the last query to the server.
+     *
+     * @throws IOException from stream and socket operations
+     */
     private void requestRetransmit() throws IOException {
         System.out.println("File mismatch: incorrect file hashcode, requesting retransmit..");
         commandWriter.write(StratoUtils.makeQueryMessage(client.getToken(), Byte.parseByte(recentQuery[0]), recentQuery[1]));
     }
 
-    private void saveImage(byte[] data) throws IOException { // todo: move to utils?
+    /**
+     * @param data the received image
+     * @throws IOException from stream and socket operations
+     */
+    private void saveImage(byte[] data) throws IOException {
         System.out.println("Enter image name: ");
         String name = input.nextLine();
-        System.out.println("saving image..");
-        FileOutputStream saveStream = new FileOutputStream(System.getProperty("user.dir") + File.separator + name + ".jpg");
-        saveStream.write(data);
-        saveStream.close();
+        StratoUtils.saveImage(data, name);
         System.out.println("image saved.");
     }
 
+    /**
+     * process the received JSON object and print relevant data
+     *
+     * @param data the received JSON object
+     */
     private void processJSONObject(byte[] data) {
         String pressure = new String(data);
         String[] values = StratoUtils.getPressureValues(pressure);
@@ -132,6 +187,11 @@ class ClientQueryModule {
             System.out.println(value.trim());
     }
 
+    /**
+     * indicates disconnecting from server, sends a Query_Disc message to the server
+     *
+     * @throws IOException from stream and socket operations
+     */
     public void disconnect() throws IOException {
         System.out.println("Disconnecting from server..");
         commandWriter.write(StratoUtils.makeQueryMessage(client.getToken(), (byte) 6, ""));

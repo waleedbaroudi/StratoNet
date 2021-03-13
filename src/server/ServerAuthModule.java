@@ -8,6 +8,9 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Scanner;
 
+/**
+ * this class handles the authentication related operations of the server side
+ */
 public class ServerAuthModule {
 
     private final StratoClientHandler server;
@@ -31,6 +34,13 @@ public class ServerAuthModule {
         usersFile = new File(System.getProperty("user.dir") + "/users.txt");
     }
 
+    /**
+     * processes the received authentication message based on the type and content
+     * takes action based on the message type.
+     *
+     * @return whether the received message should terminate the connection
+     * @throws IOException from stream and socket operations
+     */
     boolean processAuthMessage() throws IOException {
         byte type = commandReader.readByte();
         String payload = new String(readMessage());
@@ -44,10 +54,10 @@ public class ServerAuthModule {
         if (inputUsername == null) {
             inputUsername = payload;
             if (isValidUsername(inputUsername)) {
-                sendMessage((byte) 1, "Password:");
+                sendAuthMessage((byte) 1, "Password:");
                 return true;
             }
-            sendMessage((byte) 2, "Username does not exist.");
+            sendAuthMessage((byte) 2, "Username does not exist.");
             return false;
         }
 
@@ -55,23 +65,29 @@ public class ServerAuthModule {
         if (inputPassword.equals(correctPassword)) {
             token = server.registerClient(inputUsername);
             if (token == null) { // Client with this username is already signed in
-                sendMessage((byte) 2, "User already signed in.");
+                sendAuthMessage((byte) 2, "User already signed in.");
                 return false;
             }
-            sendMessage((byte) 3, "Authenticated successfully!," + token); // send token
-            sendMessage((byte) 6, "" + StratoServer.DATA_PORT); // send query connection info
+            sendAuthMessage((byte) 3, "Authenticated successfully!," + token); // send token
+            sendAuthMessage((byte) 6, "" + StratoServer.DATA_PORT); // send query connection info
             server.initializeQueryPhase();
             return true;
         }
         if (passwordAttempts > 0) {
-            sendMessage((byte) 1, "Incorrect, remaining attempts: " + passwordAttempts + ". Password:");
+            sendAuthMessage((byte) 1, "Incorrect, remaining attempts: " + passwordAttempts + ". Password:");
             passwordAttempts--;
             return true;
         }
-        sendMessage((byte) 2, "Incorrect password, out of attempts.");
+        sendAuthMessage((byte) 2, "Incorrect password, out of attempts.");
         return false;
     }
 
+    /**
+     * reads the payload of the message from the command socket input stream
+     *
+     * @return the payload as an array of bytes
+     * @throws IOException from stream and socket operations
+     */
     private byte[] readMessage() throws IOException {
         int length = commandReader.readInt();
         byte[] message = new byte[length];
@@ -79,6 +95,13 @@ public class ServerAuthModule {
         return message;
     }
 
+    /**
+     * checks the given username with those in the list of users
+     *
+     * @param name the given username
+     * @return whether the given username matches a user in the list of users
+     * @throws IOException from stream and socket operations
+     */
     private boolean isValidUsername(String name) throws IOException {
         Scanner fileScanner = new Scanner(usersFile);
         String username;
@@ -94,7 +117,13 @@ public class ServerAuthModule {
         return false;
     }
 
-    private void sendMessage(byte type, String payload) throws IOException {
+    /**
+     * sends an authentication phase method to the server
+     * message type not specified because the client can only send Auth_Request messages in this phase.
+     *
+     * @throws IOException from stream and socket operations
+     */
+    private void sendAuthMessage(byte type, String payload) throws IOException {
         byte[] message = StratoUtils.makeAuthMessage(type, payload);
         commandWriter.write(message);
     }
@@ -103,7 +132,12 @@ public class ServerAuthModule {
         return token;
     }
 
+    /**
+     * sends an Auth_Fail message to the client indicating that the connection has timed out
+     *
+     * @throws IOException from stream and socket operations
+     */
     public void sendTimeOutMessage() throws IOException {
-        sendMessage((byte) 2, "Connection timed out. Authentication failed.");
+        sendAuthMessage((byte) 2, "Connection timed out. Authentication failed.");
     }
 }

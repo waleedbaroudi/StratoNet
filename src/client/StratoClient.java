@@ -21,6 +21,12 @@ public class StratoClient {
         }
     }
 
+    /**
+     * initiates socket to the server as well as associated input/output streams and auth module
+     * starts the interaction loop with the server
+     *
+     * @throws IOException from stream and socket operations
+     */
     public void connect() throws IOException {
         Socket authSocket = new Socket("localhost", 5555);
         commandWriter = new DataOutputStream(authSocket.getOutputStream());
@@ -37,6 +43,12 @@ public class StratoClient {
         authSocket.close();
     }
 
+    /**
+     * receives a message and directs it to the appropriate module
+     *
+     * @return whether the received message should terminate connection
+     * @throws IOException from stream and socket operations
+     */
     private boolean receiveMessage() throws IOException {
         byte phase = commandReader.readByte();
         if (phase == 1) {
@@ -45,6 +57,13 @@ public class StratoClient {
         return authModule.processAuthMessage();
     }
 
+    /**
+     * connects to the data socket, initializes the input stream from the data socket and the query module
+     *
+     * @param port the received port for the data socket
+     * @return whether the client chose to terminate connection
+     * @throws IOException from stream and socket operations
+     */
     boolean initializeQueryPhase(int port) throws IOException {
         Socket dataSocket = new Socket("localhost", port);
         DataInputStream dataReader = new DataInputStream(dataSocket.getInputStream());

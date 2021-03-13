@@ -10,6 +10,10 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.URL;
 
+/**
+ * this class handles an individual client connection to the server
+ * since this class extends the Thread class, clients are connected concurrently.
+ */
 public class StratoClientHandler extends Thread {
     private final Socket commandSocket;
     private Socket dataSocket;
@@ -31,14 +35,19 @@ public class StratoClientHandler extends Thread {
 
     public void run() {
         try {
+            //  initialize input/output streams
             commandWriter = new DataOutputStream(commandSocket.getOutputStream());
             commandReader = new DataInputStream(commandSocket.getInputStream());
+            // set Socket timeout
             commandSocket.setSoTimeout(10000);
+            // initialize authentication module
             authModule = new ServerAuthModule(this, commandReader, commandWriter);
 
+            // send welcoming messages
             sendMessage((byte) 0, (byte) 5, "Welcome to StratoNet server");
             sendMessage((byte) 0, (byte) 1, "Username:");
 
+            // start interaction loop
             while (true) {
                 if (!receiveMessage())
                     break;
@@ -47,15 +56,19 @@ public class StratoClientHandler extends Thread {
             closeConnection();
         } catch (SocketTimeoutException e) {
             sendTimeOutMessage();
+            disconnectClient();
         } catch (SocketException e) {
             System.err.println("Lost connection with client");
+            disconnectClient();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
             disconnectClient();
         }
     }
 
+    /**
+     * closes sockets and streams
+     */
     private void closeConnection() {
         try {
             commandWriter.close();
@@ -70,6 +83,12 @@ public class StratoClientHandler extends Thread {
         }
     }
 
+    /**
+     * receives a message and directs it to the appropriate module
+     *
+     * @return whether the received message should terminate connection
+     * @throws IOException from stream and socket operations
+     */
     private boolean receiveMessage() throws IOException {
         byte phase = commandReader.readByte();
         if (phase != currentPhase) {
@@ -85,7 +104,14 @@ public class StratoClientHandler extends Thread {
         return false;
     }
 
-
+    /**
+     * sends a message to the client
+     *
+     * @param phase   the intended phase of the message
+     * @param type    message type
+     * @param payload message payload
+     * @throws IOException from stream and socket operations
+     */
     private void sendMessage(byte phase, byte type, String payload) throws IOException {
         if (phase == 0) // auth
             commandWriter.write(StratoUtils.makeAuthMessage(type, payload));
@@ -93,7 +119,10 @@ public class StratoClientHandler extends Thread {
             commandWriter.write(StratoUtils.makeQueryMessage(authModule.getToken(), type, payload));
     }
 
-
+    /**
+     * indicates connection timeout and sends a timeout message to the client
+     * through the appropriate module
+     */
     private void sendTimeOutMessage() {
         System.out.println("Client " + commandSocket.getPort() + " timed out.");
         try {
@@ -106,6 +135,11 @@ public class StratoClientHandler extends Thread {
         }
     }
 
+    /**
+     * sets the current phase to query phase. initializes data socket, data stream, and query module.
+     *
+     * @throws IOException from stream and socket operations
+     */
     void initializeQueryPhase() throws IOException {
         currentPhase = 1;
         dataSocket = server.getDataSocket();
