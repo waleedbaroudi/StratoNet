@@ -217,6 +217,10 @@ public class StratoClientHandler extends Thread {
         startProcessingState();
         URL url = new URL(StratoUtils.APOD_URL + param);
         String response = server.apiRequest(url);
+        if (response == null) {
+            sendMessage((byte) 1, (byte) 4, "Invalid request: no results found.");
+            return;
+        }
         String imageUrl = StratoUtils.extractURL(response);
         if (imageUrl == null) { // no image url in the returned json object
             sendMessage((byte) 1, (byte) 4, "No image found with the given date.");
@@ -232,6 +236,10 @@ public class StratoClientHandler extends Thread {
         startProcessingState();
         URL url = new URL(StratoUtils.INSIGHT_URL);
         String response = server.apiRequest(url);
+        if (response == null) {
+            sendMessage((byte) 1, (byte) 4, "Invalid request: no results found.");
+            return;
+        }
         String[] solPREList = StratoUtils.extractPREObjects(response);
         byte[] data = solPREList[Integer.parseInt(param) - 1].getBytes(StandardCharsets.UTF_8);
         sendMessage((byte) 1, (byte) 0, StratoUtils.generateHash(2, data));

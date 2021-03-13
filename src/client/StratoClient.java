@@ -1,24 +1,16 @@
 package client;
 
-import utils.InvalidTokenException;
-import utils.StratoUtils;
-
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.Socket;
-import java.util.Arrays;
-import java.util.Scanner;
 
 public class StratoClient {
 
-    private Socket dataSocket;
-
+    private ClientAuthModule authModule;
+    private ClientQueryModule queryModule;
     private DataOutputStream commandWriter;
-    private DataInputStream commandReader, dataReader;
-    private Scanner input;
-
-    String token;
-
-    private String[] recentRequest;
+    private DataInputStream commandReader;
 
     public static void main(String[] args) {
         StratoClient client = new StratoClient();
@@ -33,8 +25,7 @@ public class StratoClient {
         Socket authSocket = new Socket("localhost", 5555);
         commandWriter = new DataOutputStream(authSocket.getOutputStream());
         commandReader = new DataInputStream(authSocket.getInputStream());
-        input = new Scanner(System.in);
-
+        authModule = new ClientAuthModule(this, commandReader, commandWriter);
 
         while (true) {
             if (!receiveMessage())
@@ -49,141 +40,19 @@ public class StratoClient {
     private boolean receiveMessage() throws IOException {
         byte phase = commandReader.readByte();
         if (phase == 1) {
-            if (commandReader.skipBytes(StratoUtils.TOKEN_LENGTH) != StratoUtils.TOKEN_LENGTH) {// skip token bytes
-                // token bytes were not skipped fully
-                System.out.println("FATA: error reading message");
-                return false;
-            }
-            byte type = commandReader.readByte();
-            int length = commandReader.readInt();
-            byte[] message = new byte[length];
-            commandReader.readFully(message, 0, message.length);
-            return processQueryMessage(message, type);
+            return queryModule.processQueryMessage();
         }
-        byte type = commandReader.readByte();
-        int length = commandReader.readInt();
-        byte[] message = new byte[length];
-        commandReader.readFully(message, 0, message.length);
-        return processAuthMessage(message, type);
+        return authModule.processAuthMessage();
     }
 
-    private boolean processQueryMessage(byte[] message, byte type) throws IOException {
-        String payload = new String(message);
-
-        switch (type) {
-            case 0: //hash
-                receiveData(payload);
-                sendQuery();
-                return true;
-            case 3: // info
-                System.out.println("[INFO] " + payload);
-                return true;
-            case 4: // fail
-                System.out.println("[FAIL] " + payload);
-                return false;
-            default:
-                System.out.println("[FATAL] UNKNOWN MESSAGE TYPE");
-                return false;
-        }
+    void initializeQueryPhase(int port) throws IOException {
+        Socket dataSocket = new Socket("localhost", port);
+        DataInputStream dataReader = new DataInputStream(dataSocket.getInputStream());
+        queryModule = new ClientQueryModule(this, commandReader, dataReader, commandWriter);
+        queryModule.sendQuery();
     }
 
-    private boolean processAuthMessage(byte[] message, byte type) throws IOException {
-        String payload = new String(message);
-
-        switch (type) {
-            case 1: // Auth_Challenge
-                System.out.println("[CHALLENGE] " + payload);
-                sendAuthMessage();
-                return true;
-            case 2: // Auth_Fail
-                System.out.println("[FAIL] " + payload);
-                return false;
-            case 3: // Auth_Success
-                String[] responses = payload.split(",");
-                System.out.println("[SUCCESS] " + responses[0]);
-                token = responses[1];
-                sendQuery();
-                return true;
-            case 5: //Auth_Info
-                System.out.println("[INFO] " + payload);
-                return true;
-            case 6: //Auth_Connect
-                initializeQueryPhase(Integer.parseInt(payload));
-                return true;
-            default:
-                System.out.println("[FATAL] UNKNOWN MESSAGE TYPE");
-                return false;
-        }
+    public String getToken() {
+        return authModule.getToken();
     }
-
-    private void sendAuthMessage() throws IOException {
-        String payload = input.nextLine();
-        commandWriter.write(StratoUtils.makeAuthMessage((byte) 0, payload));
-    }
-
-    private void initializeQueryPhase(int port) throws IOException {
-        dataSocket = new Socket("localhost", port);
-        dataReader = new DataInputStream(dataSocket.getInputStream());
-    }
-
-    private void sendQuery() throws IOException, InvalidTokenException {
-        System.out.println("Choose API (APOD or Insight) [1 / 2]:");
-        byte api = input.nextByte();
-        input.nextLine();
-        if (api == 1)
-            System.out.println("Enter date [yyyy-mm-dd]:");
-        else
-            System.out.println("Enter sol number [1-7]:");
-        String param = input.nextLine();
-
-        recentRequest = new String[]{"" + api, param};
-        commandWriter.write(StratoUtils.makeQueryMessage(token, api, param));
-    }
-
-    private void receiveData(String hashcode) throws IOException {
-        byte type = dataReader.readByte();
-        int length = dataReader.readInt();
-        byte[] data = new byte[length];
-        dataReader.readFully(data, 0, data.length);
-        if (!verifyDataHash(hashcode, data, type)) {
-            requestRetransmit();
-            return;
-        }
-        if (type == 1) // APOD data
-            downloadImage(data);
-        else // Insight data
-            processJSONObject(data);
-
-        // send acknowledge message
-        commandWriter.write(StratoUtils.makeQueryMessage(token, (byte) 5, hashcode));
-    }
-
-    private void downloadImage(byte[] data) throws IOException {
-        System.out.println("Enter image name: ");
-        String name = input.nextLine();
-        System.out.println("saving image..");
-        FileOutputStream saveStream = new FileOutputStream(System.getProperty("user.dir") + File.separator + name + ".jpg");
-        saveStream.write(data);
-        saveStream.close();
-        System.out.println("image saved.");
-    }
-
-    private void processJSONObject(byte[] data) {
-        String pressure = new String(data);
-        String[] values = StratoUtils.getPressureValues(pressure);
-        for (String value : values)
-            System.out.println(value.trim());
-    }
-
-    private boolean verifyDataHash(String hash, byte[] data, byte type) {
-        String receivedFileHash = (type == 1 ? "img-" : "str-") + Arrays.hashCode(data);
-        return hash.equals(receivedFileHash);
-    }
-
-    private void requestRetransmit() throws IOException {
-        System.out.println("File mismatch: incorrect file hashcode, requesting retransmit..");
-        commandWriter.write(StratoUtils.makeQueryMessage(token, Byte.parseByte(recentRequest[0]), recentRequest[1]));
-    }
-
-
 }

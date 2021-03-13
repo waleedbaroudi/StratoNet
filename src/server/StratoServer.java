@@ -79,6 +79,8 @@ public class StratoServer {
         httpConnection.setRequestProperty("Content-Type", "application/json");
         int status = httpConnection.getResponseCode();
         System.out.println("RESPONSE CODE: " + status);
+        if (status != 200)
+            return null;
         BufferedReader reader = new BufferedReader(new InputStreamReader(httpConnection.getInputStream()));
         String input;
         StringBuffer content = new StringBuffer();
