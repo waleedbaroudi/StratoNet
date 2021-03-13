@@ -233,7 +233,7 @@ public class StratoClientHandler extends Thread {
         URL url = new URL(StratoUtils.INSIGHT_URL);
         String response = server.apiRequest(url);
         String[] solPREList = StratoUtils.extractPREObjects(response);
-        byte[] data = solPREList[Integer.parseInt(param)].getBytes(StandardCharsets.UTF_8);
+        byte[] data = solPREList[Integer.parseInt(param) - 1].getBytes(StandardCharsets.UTF_8);
         sendMessage((byte) 1, (byte) 0, StratoUtils.generateHash(2, data));
         sendData((byte) 2, data.length, data);
     }
@@ -249,6 +249,4 @@ public class StratoClientHandler extends Thread {
         else
             sendMessage((byte) currentPhase, (byte) 4, "Access Denied: unauthorized user");
     }
-
-
 }

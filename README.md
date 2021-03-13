@@ -1,5 +1,5 @@
 # StratoNet: NASA-API based Application Network
 
-## [University Project]
+### [University Project]
 
-a project on the application layer network design and implementation
+a project on the application layer network design and implementation.

@@ -18,6 +18,8 @@ public class StratoClient {
 
     String token;
 
+    private String[] recentRequest;
+
     public static void main(String[] args) {
         StratoClient client = new StratoClient();
         try {
@@ -47,8 +49,11 @@ public class StratoClient {
     private boolean receiveMessage() throws IOException {
         byte phase = commandReader.readByte();
         if (phase == 1) {
-            byte[] receivedToken = new byte[StratoUtils.TOKEN_LENGTH]; // TODO: remove this (redundant)
-            commandReader.readFully(receivedToken, 0, receivedToken.length);
+            if (commandReader.skipBytes(StratoUtils.TOKEN_LENGTH) != StratoUtils.TOKEN_LENGTH) {// skip token bytes
+                // token bytes were not skipped fully
+                System.out.println("FATA: error reading message");
+                return false;
+            }
             byte type = commandReader.readByte();
             int length = commandReader.readInt();
             byte[] message = new byte[length];
@@ -125,12 +130,13 @@ public class StratoClient {
         System.out.println("Choose API (APOD or Insight) [1 / 2]:");
         byte api = input.nextByte();
         input.nextLine();
-        if (api == 1) // todo: change this to byte
+        if (api == 1)
             System.out.println("Enter date [yyyy-mm-dd]:");
         else
             System.out.println("Enter sol number [1-7]:");
         String param = input.nextLine();
 
+        recentRequest = new String[]{"" + api, param};
         commandWriter.write(StratoUtils.makeQueryMessage(token, api, param));
     }
 
@@ -140,8 +146,7 @@ public class StratoClient {
         byte[] data = new byte[length];
         dataReader.readFully(data, 0, data.length);
         if (!verifyDataHash(hashcode, data, type)) {
-            // todo: request retransmit
-            System.out.println("FILE MISMATCH: WRONG HASH");
+            requestRetransmit();
             return;
         }
         if (type == 1) // APOD data
@@ -173,6 +178,11 @@ public class StratoClient {
     private boolean verifyDataHash(String hash, byte[] data, byte type) {
         String receivedFileHash = (type == 1 ? "img-" : "str-") + Arrays.hashCode(data);
         return hash.equals(receivedFileHash);
+    }
+
+    private void requestRetransmit() throws IOException {
+        System.out.println("File mismatch: incorrect file hashcode, requesting retransmit..");
+        commandWriter.write(StratoUtils.makeQueryMessage(token, Byte.parseByte(recentRequest[0]), recentRequest[1]));
     }
 
 
