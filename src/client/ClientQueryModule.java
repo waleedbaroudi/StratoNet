@@ -11,32 +11,43 @@ class ClientQueryModule {
     private final StratoClient client;
     private final DataInputStream commandReader;
     private final DataInputStream dataReader;
-    private final DataOutputStream writer;
+    private final DataOutputStream commandWriter;
     private final Scanner input;
 
     private String[] recentQuery;
 
-    public ClientQueryModule(StratoClient client, DataInputStream commandReader, DataInputStream dataReader, DataOutputStream writer) {
+    public ClientQueryModule(StratoClient client, DataInputStream commandReader, DataInputStream dataReader, DataOutputStream commandWriter) {
         this.client = client;
         this.commandReader = commandReader;
         this.dataReader = dataReader;
-        this.writer = writer;
+        this.commandWriter = commandWriter;
         input = new Scanner(System.in);
     }
 
 
-    void sendQuery() throws IOException, InvalidTokenException {
-        System.out.println("Choose API (APOD or Insight) [1 / 2]:");
+    boolean sendQuery() throws IOException, InvalidTokenException {
+        System.out.println("Choose API (APOD or Insight) [1 / 2], or [-1] to disconnect:");
         byte api = input.nextByte();
         input.nextLine();
-        if (api == 1)
-            System.out.println("Enter date [yyyy-mm-dd]:");
-        else
-            System.out.println("Enter sol number [1-7]:");
+        switch (api) {
+            case -1:
+                disconnect();
+                return false;
+            case 1:
+                System.out.println("Enter date [yyyy-mm-dd]:");
+                break;
+            case 2:
+                System.out.println("Enter sol number [1-7]:");
+                break;
+            default:
+                System.out.println("Invalid command");
+                return false;
+        }
         String param = input.nextLine();
 
         recentQuery = new String[]{"" + api, param};
-        writer.write(StratoUtils.makeQueryMessage(client.getToken(), api, param));
+        commandWriter.write(StratoUtils.makeQueryMessage(client.getToken(), api, param));
+        return true;
     }
 
     boolean processQueryMessage() throws IOException {
@@ -44,12 +55,10 @@ class ClientQueryModule {
             return false;
         byte type = commandReader.readByte();
         String payload = new String(readMessage());
-
         switch (type) {
             case 0: //hash
                 receiveData(payload);
-                sendQuery();
-                return true;
+                return sendQuery();
             case 3: // info
                 System.out.println("[INFO] " + payload);
                 return true;
@@ -77,7 +86,7 @@ class ClientQueryModule {
             processJSONObject(data);
 
         // send acknowledge message
-        writer.write(StratoUtils.makeQueryMessage(client.getToken(), (byte) 5, hashcode));
+        commandWriter.write(StratoUtils.makeQueryMessage(client.getToken(), (byte) 5, hashcode));
     }
 
     private boolean skipToken() throws IOException {
@@ -103,7 +112,7 @@ class ClientQueryModule {
 
     private void requestRetransmit() throws IOException {
         System.out.println("File mismatch: incorrect file hashcode, requesting retransmit..");
-        writer.write(StratoUtils.makeQueryMessage(client.getToken(), Byte.parseByte(recentQuery[0]), recentQuery[1]));
+        commandWriter.write(StratoUtils.makeQueryMessage(client.getToken(), Byte.parseByte(recentQuery[0]), recentQuery[1]));
     }
 
     private void saveImage(byte[] data) throws IOException { // todo: move to utils?
@@ -121,5 +130,10 @@ class ClientQueryModule {
         String[] values = StratoUtils.getPressureValues(pressure);
         for (String value : values)
             System.out.println(value.trim());
+    }
+
+    public void disconnect() throws IOException {
+        System.out.println("Disconnecting from server..");
+        commandWriter.write(StratoUtils.makeQueryMessage(client.getToken(), (byte) 6, ""));
     }
 }

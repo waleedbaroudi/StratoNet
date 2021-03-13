@@ -45,14 +45,15 @@ public class StratoClient {
         return authModule.processAuthMessage();
     }
 
-    void initializeQueryPhase(int port) throws IOException {
+    boolean initializeQueryPhase(int port) throws IOException {
         Socket dataSocket = new Socket("localhost", port);
         DataInputStream dataReader = new DataInputStream(dataSocket.getInputStream());
         queryModule = new ClientQueryModule(this, commandReader, dataReader, commandWriter);
-        queryModule.sendQuery();
+        return queryModule.sendQuery();
     }
 
     public String getToken() {
         return authModule.getToken();
     }
+
 }

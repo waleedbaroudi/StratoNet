@@ -48,11 +48,11 @@ public class StratoClientHandler extends Thread {
         } catch (SocketTimeoutException e) {
             sendTimeOutMessage();
         } catch (SocketException e) {
-            System.err.println("Client disconnected");
+            System.err.println("Lost connection with client");
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            server.unregisterClient(authModule.getToken());
+            disconnectClient();
         }
     }
 
@@ -140,5 +140,10 @@ public class StratoClientHandler extends Thread {
 
     public String apiRequest(URL url) throws IOException {
         return server.apiRequest(url);
+    }
+
+    void disconnectClient() {
+        System.err.println("Client with port " + commandSocket.getPort() + " disconnected");
+        server.unregisterClient(authModule.getToken());
     }
 }

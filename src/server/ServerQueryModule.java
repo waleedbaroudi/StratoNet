@@ -42,6 +42,9 @@ public class ServerQueryModule {
                 // stop processing state
                 server.setProcessing(false);
                 return true;
+            case 6:
+                server.disconnectClient();
+                return false;
             default:
                 sendMessage((byte) 4, "Unknown API Operation");
                 return false;

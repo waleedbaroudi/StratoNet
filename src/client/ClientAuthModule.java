@@ -44,8 +44,7 @@ class ClientAuthModule {
                 System.out.println("[INFO] " + payload);
                 return true;
             case 6: //Auth_Connect
-                client.initializeQueryPhase(Integer.parseInt(payload));
-                return true;
+                return client.initializeQueryPhase(Integer.parseInt(payload));
             default:
                 System.out.println("[FATAL] UNKNOWN MESSAGE TYPE");
                 return false;
