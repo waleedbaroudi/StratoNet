@@ -13,7 +13,8 @@ public class StratoServer {
 
     // port numbers for command and data server sockets
     public static final int AUTH_PORT = 5555;
-    public static final int DATA_PORT = 6666;
+    static final int DATA_PORT = 6666; // package visibility only
+    // because the client shouldn't know about it directly
 
     ServerSocket authServerSocket, dataServerSocket;
 
@@ -132,7 +133,6 @@ public class StratoServer {
 
         return content.toString();
     }
-
 }
 
 

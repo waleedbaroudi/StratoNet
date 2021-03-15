@@ -56,7 +56,7 @@ public class ServerQueryModule {
                 server.disconnectClient();
                 return false;
             default:
-                sendMessage((byte) 4, "Unknown API Operation");
+                sendMessage((byte) 4, "Unknown Query Operation");
                 return false;
         }
     }
@@ -113,7 +113,7 @@ public class ServerQueryModule {
             return;
         }
         String imageUrl = StratoUtils.extractURL(response);
-        if (imageUrl == null) { // no image url in the returned json object
+        if (!imageUrl.endsWith(".jpg")) { // no image url in the returned json object
             sendMessage((byte) 4, "No image found with the given date.");
             return;
         }

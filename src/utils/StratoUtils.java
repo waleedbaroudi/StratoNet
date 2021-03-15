@@ -17,6 +17,7 @@ public final class StratoUtils {
 
     // CONSTANTS //
     public static final int TOKEN_LENGTH = 17;
+    public static final int SOCKET_TIMEOUT_DURATION = 10000;
     public static final String APOD_URL =
             "https://api.nasa.gov/planetary/apod?api_key=VgdpOJ1gLggIX6FTts3OAZhu9J0d7iaSNx921Itr&date=";
     public static final String INSIGHT_URL =
@@ -106,7 +107,7 @@ public final class StratoUtils {
      *
      * @param url url of the image
      * @return the image as a byte array
-     * @throws IOException
+     * @throws IOException from the ByteArrayOutputStream operations
      */
     public static byte[] downloadImage(String url) throws IOException {
         URL imgUrl = new URL(url);
@@ -150,7 +151,7 @@ public final class StratoUtils {
      */
     public static String[] getPressureValues(String pressure) {
         String[] info = pressure.substring(1, pressure.length() - 1).split(",");
-        List<String> values = Arrays.asList(info).stream().map(field -> field.split(":")[1].trim()).collect(Collectors.toList());
+        List<String> values = Arrays.stream(info).map(field -> field.split(":")[1].trim()).collect(Collectors.toList());
         info[0] = String.format("%-40s %s pascals", "Average atmospheric pressure:", values.get(0));
         info[1] = String.format("%-40s %s samples", "Total number of samples:", values.get(1));
         info[2] = String.format("%-40s %s pascals", "Minimum atmospheric pressure:", values.get(2));

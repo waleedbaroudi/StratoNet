@@ -50,7 +50,7 @@ public class ServerAuthModule {
             return false;
         }
 
-        System.out.println("[Request] " + payload);
+        System.out.println("[Request] Client " + server.getClientPort() + ": " + payload);
         if (inputUsername == null) {
             inputUsername = payload;
             if (isValidUsername(inputUsername)) {

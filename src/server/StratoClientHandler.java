@@ -39,7 +39,7 @@ public class StratoClientHandler extends Thread {
             commandWriter = new DataOutputStream(commandSocket.getOutputStream());
             commandReader = new DataInputStream(commandSocket.getInputStream());
             // set Socket timeout
-            commandSocket.setSoTimeout(10000);
+            commandSocket.setSoTimeout(StratoUtils.SOCKET_TIMEOUT_DURATION);
             // initialize authentication module
             authModule = new ServerAuthModule(this, commandReader, commandWriter);
 
@@ -150,7 +150,7 @@ public class StratoClientHandler extends Thread {
 
 
     void setProcessing(boolean isProcessing) throws IOException {
-        commandSocket.setSoTimeout(isProcessing ? 0 : 10000);
+        commandSocket.setSoTimeout(isProcessing ? 0 : StratoUtils.SOCKET_TIMEOUT_DURATION);
     }
 
     private void rejectMessage() throws IOException {
@@ -179,5 +179,9 @@ public class StratoClientHandler extends Thread {
     void disconnectClient() {
         System.err.println("Client with port " + commandSocket.getPort() + " disconnected");
         server.unregisterClient(authModule.getToken());
+    }
+
+    public int getClientPort() {
+        return commandSocket.getPort();
     }
 }

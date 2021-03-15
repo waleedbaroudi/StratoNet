@@ -1,5 +1,7 @@
 package client;
 
+import server.StratoServer;
+
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -21,14 +23,15 @@ public class StratoClient {
         }
     }
 
-    /**
+    /**r
      * initiates socket to the server as well as associated input/output streams and auth module
      * starts the interaction loop with the server
      *
      * @throws IOException from stream and socket operations
      */
     public void connect() throws IOException {
-        Socket authSocket = new Socket("localhost", 5555);
+
+        Socket authSocket = new Socket("localhost", StratoServer.AUTH_PORT);
         commandWriter = new DataOutputStream(authSocket.getOutputStream());
         commandReader = new DataInputStream(authSocket.getInputStream());
         authModule = new ClientAuthModule(this, commandReader, commandWriter);
@@ -50,7 +53,7 @@ public class StratoClient {
      * @throws IOException from stream and socket operations
      */
     private boolean receiveMessage() throws IOException {
-        byte phase = commandReader.readByte();
+        byte phase = commandReader.readByte(); // listening (since readByte() blocks)
         if (phase == 1) {
             return queryModule.processQueryMessage();
         }

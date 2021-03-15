@@ -39,9 +39,9 @@ class ClientQueryModule {
      */
     boolean sendQuery() throws IOException, InvalidTokenException {
         System.out.println("Choose API (APOD or Insight) [1 / 2], or [-1] to disconnect:");
-        byte api = input.nextByte();
+        byte option = input.nextByte();
         input.nextLine();
-        switch (api) {
+        switch (option) {
             case -1:
                 disconnect();
                 return false;
@@ -57,8 +57,8 @@ class ClientQueryModule {
         }
         String param = input.nextLine();
 
-        recentQuery = new String[]{"" + api, param};
-        commandWriter.write(StratoUtils.makeQueryMessage(client.getToken(), api, param));
+        recentQuery = new String[]{"" + option, param};
+        commandWriter.write(StratoUtils.makeQueryMessage(client.getToken(), option, param));
         return true;
     }
 
