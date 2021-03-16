@@ -42,18 +42,15 @@ public class ServerQueryModule {
 
         switch (type) {
             case 1:
-                handleApodRequest(message);
-                return true;
+                return handleApodRequest(message);
             case 2:
-                handleInsightRequest(message);
-                return true;
+                return handleInsightRequest(message);
             case 5:
                 System.out.println("Acknowledged: " + message);
                 // stop processing state
                 server.setProcessing(false);
                 return true;
             case 6:
-                server.disconnectClient();
                 return false;
             default:
                 sendMessage((byte) 4, "Unknown Query Operation");
@@ -101,47 +98,56 @@ public class ServerQueryModule {
      * handles a client's query to the APOD API
      *
      * @param param the parameter given by the user (desired picture date)
+     * @return whether the request was successful
      * @throws IOException from stream and socket operations
      */
-    private void handleApodRequest(String param) throws IOException {
+    private boolean handleApodRequest(String param) throws IOException {
         sendMessage((byte) 3, "Processing request..");
         server.setProcessing(true);
         URL url = new URL(StratoUtils.APOD_URL + param);
         String response = server.apiRequest(url);
         if (response == null) {
             sendMessage((byte) 4, "Invalid request: no results found.");
-            return;
+            return false;
         }
         String imageUrl = StratoUtils.extractURL(response);
         if (!imageUrl.endsWith(".jpg")) { // no image url in the returned json object
             sendMessage((byte) 4, "No image found with the given date.");
-            return;
+            return false;
         }
         // image url found
         byte[] image = StratoUtils.downloadImage(imageUrl);
         sendMessage((byte) 0, StratoUtils.generateHash(1, image));
         sendData((byte) 1, image.length, image);
+        return true;
     }
 
     /**
      * handles a client's query to the Insight API
      *
      * @param param the parameter given by the user (desired sol number)
+     * @return whether the request was successful
      * @throws IOException from stream and socket operations
      */
-    private void handleInsightRequest(String param) throws IOException {
+    private boolean handleInsightRequest(String param) throws IOException {
         sendMessage((byte) 3, "Processing request..");
         server.setProcessing(true);
         URL url = new URL(StratoUtils.INSIGHT_URL);
         String response = server.apiRequest(url);
         if (response == null) {
             sendMessage((byte) 4, "Invalid request: no results found.");
-            return;
+            return false;
         }
         String[] solPREList = StratoUtils.extractPREObjects(response);
-        byte[] data = solPREList[Integer.parseInt(param) - 1].getBytes(StandardCharsets.UTF_8);
-        sendMessage((byte) 0, StratoUtils.generateHash(2, data));
-        sendData((byte) 2, data.length, data);
+        try {
+            byte[] data = solPREList[Integer.parseInt(param) - 1].getBytes(StandardCharsets.UTF_8);
+            sendMessage((byte) 0, StratoUtils.generateHash(2, data));
+            sendData((byte) 2, data.length, data);
+        } catch (ArrayIndexOutOfBoundsException e) {
+            sendMessage((byte) 4, "Invalid Argument");
+            return false;
+        }
+        return true;
     }
 
     /**

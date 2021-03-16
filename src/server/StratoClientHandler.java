@@ -52,7 +52,7 @@ public class StratoClientHandler extends Thread {
                 if (!receiveMessage())
                     break;
             }
-
+            disconnectClient();
             closeConnection();
         } catch (SocketTimeoutException e) {
             sendTimeOutMessage();

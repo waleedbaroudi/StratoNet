@@ -3,6 +3,7 @@ package client;
 import utils.InvalidTokenException;
 import utils.StratoUtils;
 
+import javax.swing.*;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -105,12 +106,40 @@ class ClientQueryModule {
             return;
         }
         if (type == 1) // APOD data
-            saveImage(data);
+            processImage(data);
         else // Insight data
             processJSONObject(data);
 
         // send acknowledge message
         commandWriter.write(StratoUtils.makeQueryMessage(client.getToken(), (byte) 5, hashcode));
+    }
+
+    /**
+     * prompts the to choose an action for the image
+     * @param data the image as a byte array
+     * @throws IOException from stream and socket operations
+     */
+    private void processImage(byte[] data) throws IOException {
+        System.out.println("Save or Display image? [0 / 1]");
+        String choice = input.nextLine();
+        if (choice.equals("0"))
+            saveImage(data);
+        else
+            displayImage(data);
+
+    }
+
+    /**
+     * displays the image in a JFrame
+     * @param data the image as a byte array
+     */
+    private void displayImage(byte[] data) {
+        JFrame imageFrame = new JFrame("APOD");
+        imageFrame.getContentPane().add(new JLabel(new ImageIcon(data)));
+        imageFrame.pack();
+        imageFrame.setLocationRelativeTo(null);
+        imageFrame.setVisible(true);
+        imageFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
     }
 
     /**

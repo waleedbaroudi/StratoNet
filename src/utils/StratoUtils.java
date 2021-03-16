@@ -150,6 +150,8 @@ public final class StratoUtils {
      * @return formatted values
      */
     public static String[] getPressureValues(String pressure) {
+        try {
+
         String[] info = pressure.substring(1, pressure.length() - 1).split(",");
         List<String> values = Arrays.stream(info).map(field -> field.split(":")[1].trim()).collect(Collectors.toList());
         info[0] = String.format("%-40s %s pascals", "Average atmospheric pressure:", values.get(0));
@@ -158,6 +160,9 @@ public final class StratoUtils {
         info[3] = String.format("%-40s %s pascals", "Maximum atmospheric pressure:", values.get(3));
 
         return info;
+        } catch (ArrayIndexOutOfBoundsException e) {
+            return new String[]{"No data for the given sol"};
+        }
     }
 
     /**
