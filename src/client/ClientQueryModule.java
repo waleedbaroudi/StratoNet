@@ -77,8 +77,9 @@ class ClientQueryModule {
         String payload = new String(readMessage());
         switch (type) {
             case 0: //hash
-                receiveData(payload);
-                return sendQuery();
+                if (receiveData(payload))
+                    return sendQuery();
+                return true;
             case 3: // info
                 System.out.println("[INFO] " + payload);
                 return true;
@@ -96,14 +97,14 @@ class ClientQueryModule {
      *
      * @throws IOException from stream and socket operations
      */
-    private void receiveData(String hashcode) throws IOException {
+    private boolean receiveData(String hashcode) throws IOException {
         byte type = dataReader.readByte();
         int length = dataReader.readInt();
         byte[] data = new byte[length];
         dataReader.readFully(data, 0, data.length);
         if (!verifyDataHash(hashcode, data, type)) {
             requestRetransmit();
-            return;
+            return false;
         }
         if (type == 1) // APOD data
             processImage(data);
@@ -112,10 +113,12 @@ class ClientQueryModule {
 
         // send acknowledge message
         commandWriter.write(StratoUtils.makeQueryMessage(client.getToken(), (byte) 5, hashcode));
+        return true;
     }
 
     /**
      * prompts the to choose an action for the image
+     *
      * @param data the image as a byte array
      * @throws IOException from stream and socket operations
      */
@@ -131,6 +134,7 @@ class ClientQueryModule {
 
     /**
      * displays the image in a JFrame
+     *
      * @param data the image as a byte array
      */
     private void displayImage(byte[] data) {

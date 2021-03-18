@@ -23,7 +23,7 @@ public class StratoClient {
         }
     }
 
-    /**r
+    /**
      * initiates socket to the server as well as associated input/output streams and auth module
      * starts the interaction loop with the server
      *

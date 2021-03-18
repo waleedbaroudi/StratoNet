@@ -103,7 +103,8 @@ public class StratoServer {
      */
     public boolean isRegisteredToken(String token, String address, int port) {
         String info = address.substring(1) + ":" + port;
-        return registeredClients.get(token).equals(info);
+        String registeredInfo = registeredClients.get(token);
+        return registeredInfo != null && registeredInfo.equals(info);
     }
 
     /**
